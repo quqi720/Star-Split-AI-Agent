@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ celebrity_name }} - 智能聊天助手</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="celebrity-info">
+                <h1>🌟 {{ celebrity_name }} 聊天助手</h1>
+            </div>
+        </div>
+     
+        <div class="messages" id="messages">
+            <div class="message bot-message">
+                <div class="avatar">🌟</div>
+                <div class="message-content">
+                    <div class="message-text">你好！我是{{ celebrity_name }}，很高兴和你聊天～</div>
+                    <div class="message-time" id="currentTime"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span class="typing-text">{{ celebrity_name }}正在输入...</span>
+        </div>
+        
+        <div class="quick-suggestions">
+            <h3>快速提问：</h3>
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn" onclick="useSuggestion('你好，最近在忙什么？')">最近动态</button>
+                <button class="suggestion-btn" onclick="useSuggestion('有什么新作品要和大家见面吗？')">新作品</button>
+                <button class="suggestion-btn" onclick="useSuggestion('可以分享一下你的日常生活吗？')">日常生活</button>
+                <button class="suggestion-btn" onclick="useSuggestion('你对未来有什么规划？')">未来规划</button>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="和{{ celebrity_name }}聊天...">
+            <button id="sendButton" onclick="sendMessage()">
+                <span>发送</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+        
+    </div>
+
+    <script>
+        const celebrityName = "{{ celebrity_name }}";
+        const userId = "{{ user_id }}";
+        
+        // 设置当前时间
+        document.getElementById('currentTime').textContent = new Date().toLocaleTimeString('zh-CN', { 
+            hour: '2-digit', minute: '2-digit' 
+        });
+        
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            const sendButton = document.getElementById('sendButton');
+            
+            if (message === '') return;
+            
+            // 禁用发送按钮
+            sendButton.disabled = true;
+            input.disabled = true;
+            
+            // 添加用户消息到界面
+            addMessage('user', message);
+            input.value = '';
+            
+            // 显示"正在输入"提示
+            showTypingIndicator();
+            
+            // 发送到后端
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    user_id: userId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 隐藏"正在输入"提示
+                hideTypingIndicator();
+                
+                // 添加机器人回复
+                addMessage('bot', data.response);
+                
+                // 重新启用发送按钮
+                sendButton.disabled = false;
+                input.disabled = false;
+                input.focus();
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                addMessage('bot', '抱歉，我现在有点忙，稍后再聊吧～');
+                sendButton.disabled = false;
+                input.disabled = false;
+                input.focus();
+            });
+        }
+        
+        function addMessage(sender, text) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-text">${text}</div>
+                        <div class="message-time">${new Date().toLocaleTimeString('zh-CN', { 
+                            hour: '2-digit', minute: '2-digit' 
+                        })}</div>
+                    </div>
+                    <div class="avatar">👤</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="avatar">🌟</div>
+                    <div class="message-content">
+                        <div class="message-text">${text}</div>
+                        <div class="message-time">${new Date().toLocaleTimeString('zh-CN', { 
+                            hour: '2-digit', minute: '2-digit' 
+                        })}</div>
+                    </div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            
+            // 滚动到底部
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'flex';
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+        
+        function useSuggestion(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+        
+        // 支持按Enter键发送
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // 页面加载后自动聚焦输入框
+        window.onload = function() {
+            document.getElementById('userInput').focus();
+        };
+    </script>
+</body>
+</html>
